@@ -1,9 +1,8 @@
-ARG DOCKER_GID=984
-
 FROM jenkins/jenkins:2.541.1-jdk21
 
 USER root
 
+ARG DOCKER_GID=984
 RUN groupadd -g ${DOCKER_GID} docker && usermod -aG docker jenkins 
 USER jenkins
 

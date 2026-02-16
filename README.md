@@ -1,44 +1,59 @@
-# Running Jenkins with Side-by-Side Docker Agents
+# Running Jenkins with Docker Agents
 
-Instead of running Docker-in-Docker (DinD), this setup uses the **Docker-out-of-Docker** pattern by mounting the host's Docker socket and binary. This allows Jenkins to create sibling containers on the host rather than nested containers, which is more secure, performant, and reliable than DinD.
+Instead of running Docker-in-Docker (DnD), this setup uses the **Docker-out-of-Docker** pattern by mounting the host's Docker socket and binary. This allows Jenkins to create sibling containers on the host rather than nested containers, which is more secure, performant, and reliable than DnD.
 
+To improve security and isolation, builds run on a dedicated Docker agent container rather than on the Jenkins controller node.
 
-## Before Running Docker Compose
+## Architecture
 
-1. **Find your host's Docker group ID:**
+- **Jenkins Controller**: Manages the Jenkins instance, schedules jobs, and serves the UI
+- **Jenkins Agent**: Executes build jobs in an isolated container
+- **Docker Socket**: Both controller and agent share the host's Docker daemon to build and run containers
+
+## Prerequisites
+
+- Docker and Docker Compose installed on the host
+- Host Docker daemon running
+
+## Setup
+
+1. **Extract the host's Docker group ID:**
 ```bash
    getent group docker | cut -d: -f3
 ```
 
-2. **Update the `DOCKER_GID` variable:**
-   - Set `DOCKER_GID` to the value from step 1
-   
-
-## Running Jenkins
+2. **Create a `.env` file with the following variables:**
 ```bash
-# Build the custom Jenkins image
-docker-compose build
-
-# Start Jenkins
-docker-compose up -d
-
-# View logs
-docker-compose logs -f jenkins
+   DOCKER_GID=984  # Replace with your Docker group ID from step 1
+   JENKINS_SECRET=  # Leave empty for now, will be filled after first run
 ```
 
-## Accessing Jenkins
-
-- Jenkins UI: `http://localhost:8080`
-- Get initial admin password:
+3. **Start Jenkins controller:**
 ```bash
-  docker-compose exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+   docker-compose up
 ```
 
-## How It Works
+4. **Get the initial admin password:**
+```bash
+   docker-compose exec jenkins-service cat /var/jenkins_home/secrets/initialAdminPassword
+```
 
-Jenkins runs in a container with:
-- **Docker socket mounted** (`/var/run/docker.sock`) - allows Jenkins to communicate with the host's Docker daemon
-- **Docker binary mounted** - provides the `docker` CLI command inside the container
-- **Correct group permissions** - Jenkins user is added to the docker group with the host's GID
+5. **Configure the agent in Jenkins UI:**
+   - Go to: **Manage Jenkins → Nodes → New Node**
+   - Name: `agentX` (must match the container name)
+   - Type: **Permanent Agent**
+   - Remote root directory: `/home/jenkins/agent`
+   - Launch method: **Launch agent by connecting it to the controller**
+   - Copy the **secret** that appears
 
-When Jenkins builds Docker images or runs containers, they appear as siblings on the host, not inside the Jenkins container.
+6. **Update `.env` with the agent secret:**
+```bash
+   DOCKER_GID=984
+   JENKINS_SECRET=your_secret_from_jenkins_ui
+```
+
+7. **Start the agent:**
+```bash
+   docker-compose up -d jenkins-agent
+```
+

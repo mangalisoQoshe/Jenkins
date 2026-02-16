@@ -1,0 +1,8 @@
+FROM jenkins/inbound-agent:latest-rhel-ubi9-jdk25
+
+USER root
+
+ARG DOCKER_GID=984
+RUN groupadd -g ${DOCKER_GID} docker && usermod -aG docker jenkins 
+
+USER jenkins

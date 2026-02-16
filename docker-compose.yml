@@ -1,5 +1,5 @@
 services:
-  jenkins-service:
+  jenkins:
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -14,7 +14,25 @@ services:
       - 50000:50000
     networks:
       - jenkins_net
-  
+
+  agent:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.agent
+    container_name: agentX
+    init: true
+    environment:
+      JENKINS_URL: http://jenkins:8080          
+      JENKINS_SECRET: ${JENKINS_SECRET}
+      JENKINS_AGENT_NAME: agentX
+      JENKINS_AGENT_WORKDIR: /home/jenkins/agent       
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+    networks:
+      - jenkins_net
+    depends_on:
+      - jenkins                            
 
 networks:
   jenkins_net:
